@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suivi des heures de travail</title>
+<style>
+  :root{
+    --bg:#0f172a;
+    --card:#1e293b;
+    --card2:#273449;
+    --accent:#38bdf8;
+    --accent2:#a78bfa;
+    --night:#6366f1;
+    --ot25:#f97316;
+    --ot50:#ef4444;
+    --text:#e2e8f0;
+    --muted:#94a3b8;
+    --border:#334155;
+    --good:#22c55e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:linear-gradient(160deg,#0f172a,#1e2942);
+    color:var(--text);
+    min-height:100vh;
+    padding:20px;
+  }
+  .wrap{max-width:1050px;margin:0 auto;}
+  h1{
+    font-size:1.6em;
+    margin:0 0 4px 0;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .subtitle{color:var(--muted);margin-bottom:20px;font-size:0.9em;}
+
+  .top-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:12px;
+    margin-bottom:20px;
+  }
+  .stat-card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px 16px;
+  }
+  .stat-card .label{font-size:0.72em;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+  .stat-card .value{font-size:1.4em;font-weight:700;margin-top:4px;}
+  .stat-card.night .value{color:var(--night);}
+  .stat-card.ot25 .value{color:var(--ot25);}
+  .stat-card.ot50 .value{color:var(--ot50);}
+  .stat-card.total .value{color:var(--accent);}
+  .stat-card.jour .value{color:#facc15;}
+  .stat-card.salaire .value{color:var(--good);}
+
+  details.settings-panel{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px 16px;
+    margin-bottom:20px;
+    font-size:0.9em;
+  }
+  details.settings-panel summary{
+    cursor:pointer;
+    font-weight:700;
+    color:var(--accent);
+    list-style:none;
+  }
+  details.settings-panel summary::-webkit-details-marker{display:none;}
+  .settings-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:12px;
+    margin-top:14px;
+  }
+  .settings-grid label{
+    color:var(--muted);
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    font-size:0.85em;
+  }
+  .settings-grid input{
+    background:var(--card2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:6px 8px;
+    font-size:1em;
+  }
+  .settings-grid label.checkbox-label{
+    flex-direction:row;
+    align-items:center;
+    gap:8px;
+    background:var(--card2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 10px;
+  }
+  .settings-grid label.checkbox-label input{width:auto;padding:0;}
+  .param-group-title{
+    font-weight:700;
+    color:var(--accent2);
+    margin:16px 0 4px 0;
+    font-size:0.9em;
+    border-top:1px dashed var(--border);
+    padding-top:12px;
+  }
+  .param-group-title:first-of-type{border-top:none;padding-top:0;}
+  #saveStatus{display:block;margin-top:10px;color:var(--muted);font-size:0.8em;}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:18px;
+    margin-bottom:20px;
+  }
+  .card.highlight{border-color:var(--accent);}
+  .month-nav{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:14px;
+  }
+  .month-nav button{
+    background:var(--card2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:6px 12px;
+    cursor:pointer;
+    font-size:1em;
+  }
+  .month-nav button:hover{background:var(--border);}
+  .month-nav .month-label{font-weight:700;font-size:1.1em;}
+
+  .calendar{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:6px;
+  }
+  .dow{
+    text-align:center;
+    font-size:0.75em;
+    color:var(--muted);
+    padding-bottom:4px;
+  }
+  .day{
+    background:var(--card2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    min-height:64px;
+    padding:6px;
+    cursor:pointer;
+    position:relative;
+    transition:0.15s;
+  }
+  .day:hover{border-color:var(--accent);}
+  .day.empty{background:transparent;border:none;cursor:default;}
+  .day .num{font-size:0.8em;color:var(--muted);}
+  .day .shift-tag{
+    margin-top:4px;
+    font-size:0.68em;
+    padding:2px 5px;
+    border-radius:6px;
+    display:inline-block;
+    font-weight:600;
+  }
+  .day.today{border-color:var(--accent);}
+  .shift-nuit0{background:rgba(99,102,241,0.25);color:#c7d2fe;}
+  .shift-jour{background:rgba(56,189,248,0.25);color:#bae6fd;}
+  .shift-nuit16{background:rgba(167,139,250,0.25);color:#ddd6fe;}
+
+  .week-row{
+    display:flex;
+    justify-content:space-between;
+    padding:8px 4px;
+    font-size:0.85em;
+    color:var(--muted);
+    border-bottom:1px dashed var(--border);
+    flex-wrap:wrap;
+    gap:4px;
+  }
+  .week-row .tags span{margin-left:8px;}
+  .tag-ot25{color:var(--ot25);font-weight:700;}
+  .tag-ot50{color:var(--ot50);font-weight:700;}
+
+  .modal-overlay{
+    position:fixed;inset:0;
+    background:rgba(0,0,0,0.6);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+  }
+  .modal-overlay.active{display:flex;}
+  .modal{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:20px;
+    width:90%;
+    max-width:340px;
+  }
+  .modal h3{margin-top:0;}
+  .shift-option{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:var(--card2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px 14px;
+    margin-bottom:8px;
+    cursor:pointer;
+    font-size:0.95em;
+  }
+  .shift-option:hover{border-color:var(--accent);}
+  .shift-option.selected{border-color:var(--accent);background:rgba(56,189,248,0.15);}
+  .dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+  .dot.nuit0{background:var(--night);}
+  .dot.jour{background:var(--accent);}
+  .dot.nuit16{background:var(--accent2);}
+  .dot.none{background:var(--muted);}
+  .modal-actions{display:flex;gap:8px;margin-top:14px;}
+  .modal-actions button{
+    flex:1;
+    padding:10px;
+    border-radius:10px;
+    border:none;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .btn-cancel{background:var(--card2);color:var(--text);border:1px solid var(--border) !important;}
+  .btn-save{background:var(--accent);color:#0f172a;}
+
+  .legend{
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+    margin-top:10px;
+    font-size:0.8em;
+    color:var(--muted);
+  }
+  .legend .item{display:flex;align-items:center;gap:6px;}
+
+  .loading{color:var(--muted);font-size:0.85em;}
+
+  .salary-breakdown{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:6px 16px;
+    font-size:0.88em;
+    margin-top:8px;
+  }
+  .salary-breakdown .line-total{
+    border-top:1px solid var(--border);
+    padding-top:8px;
+    margin-top:4px;
+    font-weight:700;
+    font-size:1.1em;
+    color:var(--good);
+  }
+  .salary-breakdown .line-total span:first-child{border:none;}
+  .salary-breakdown .line-disabled{color:var(--muted);text-decoration:line-through;opacity:0.6;}
+
+  .history-filters{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+  }
+  .history-filters select{
+    background:var(--card2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:6px 10px;
+    font-size:0.9em;
+  }
+
+  .payslip-table{width:100%;border-collapse:collapse;font-size:0.88em;}
+  .payslip-table th{text-align:left;color:var(--muted);font-size:0.78em;text-transform:uppercase;letter-spacing:0.4px;padding:6px 8px;border-bottom:1px solid var(--border);}
+  .payslip-table td{padding:8px;border-bottom:1px dashed var(--border);}
+  .payslip-table tr:last-child td{border-bottom:none;}
+  .payslip-table tr.editing-row{background:rgba(56,189,248,0.08);}
+  .diff-pos{color:var(--good);font-weight:600;}
+  .diff-neg{color:var(--ot50);font-weight:600;}
+  .diff-zero{color:var(--muted);}
+  .payslip-table .note{color:var(--muted);font-size:0.85em;}
+  .btn-del-payslip, .btn-edit-payslip{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1em;padding:2px 6px;}
+  .btn-del-payslip:hover{color:var(--ot50);}
+  .btn-edit-payslip:hover{color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🕐 Suivi des heures de travail</h1>
+  <div class="subtitle">Clique sur un jour pour indiquer ton créneau</div>
+
+  <details class="settings-panel" id="settingsPanel">
+    <summary>⚙️ Réglages horaires (nuit, seuils)</summary>
+    <div class="settings-grid">
+      <label>🌙 Début nuit <input type="time" id="nightStart" value="21:00"></label>
+      <label>🌙 Fin nuit <input type="time" id="nightEnd" value="06:00"></label>
+      <label>📅 Seuil hebdo heures normales (h) <input type="number" id="weekThreshold" value="35" min="0" step="0.5"></label>
+      <label>➕ Palier avant 50% (h au-delà du seuil) <input type="number" id="ot25Range" value="8" min="0" step="0.5"></label>
+    </div>
+    <span id="saveStatus"></span>
+  </details>
+
+  <details class="settings-panel highlight" id="payParamsPanel" open>
+    <summary>💶 Paramétrage du calcul de la paie</summary>
+
+    <div class="param-group-title">1. Composants activés dans le calcul</div>
+    <div class="settings-grid">
+      <label class="checkbox-label"><input type="checkbox" id="enableOT"> Heures supplémentaires (25%/50%)</label>
+      <label class="checkbox-label"><input type="checkbox" id="enableHabillage"> Prime d'habillage</label>
+      <label class="checkbox-label"><input type="checkbox" id="enableNightPremium"> Majoration heures de nuit</label>
+      <label class="checkbox-label"><input type="checkbox" id="enableMeals"> Indemnités repas</label>
+      <label class="checkbox-label"><input type="checkbox" id="enableIFM"> IFM (fin de mission)</label>
+      <label class="checkbox-label"><input type="checkbox" id="enableICCP"> ICCP (congés payés)</label>
+      <label class="checkbox-label"><input type="checkbox" id="enableCharges"> Charges salariales (brut → net)</label>
+    </div>
+
+    <div class="param-group-title">2. Taux et montants</div>
+    <div class="settings-grid">
+      <label>💶 Taux horaire (€) <input type="number" id="hourlyRate" value="12.33" min="0" step="0.01"></label>
+      <label>📈 Majoration heures sup 1 (%) <input type="number" id="ot25Rate" value="25" min="0" step="1"></label>
+      <label>📈 Majoration heures sup 2 (%) <input type="number" id="ot50Rate" value="50" min="0" step="1"></label>
+      <label>🧥 Prime d'habillage (€/h) <input type="number" id="habillageRate" value="0.05" min="0" step="0.01"></label>
+      <label>🧥 Limite prime habillage (h/sem) <input type="number" id="habillageCap" value="35" min="0" step="0.5"></label>
+      <label>🍽️ Indemnité repas jour (€/j) <input type="number" id="mealDay" value="4.35" min="0" step="0.01"></label>
+      <label>🌙 Indemnité repas nuit (€/j) <input type="number" id="mealNight" value="6.52" min="0" step="0.01"></label>
+      <label>🌙 Majoration heures de nuit (%) <input type="number" id="nightPremiumRate" value="15" min="0" step="1"></label>
+      <label>🏁 Indemnité fin de mission - IFM (%) <input type="number" id="ifmRate" value="10" min="0" step="0.5"></label>
+      <label>🏖️ Indemnité congés payés - ICCP (%) <input type="number" id="iccpRate" value="10" min="0" step="0.5"></label>
+      <label>📉 Taux de charges salariales (%) <input type="number" id="chargesRate" value="22" min="0" step="0.5"></label>
+    </div>
+
+    <div class="param-group-title">3. Comment c'est calculé</div>
+    <div style="font-size:0.85em;color:var(--muted);line-height:1.6;">
+      1. Heures normales + heures sup (25%/50% au-delà du seuil hebdo) → <b>base</b><br>
+      2. + prime d'habillage (si activée) + majoration nuit (si activée) → <b>sous-total brut</b><br>
+      3. + IFM (si activée, % du sous-total) → + ICCP (si activée, % du sous-total + IFM) → <b>total brut</b><br>
+      4. Total brut − charges salariales (si activées) + indemnités repas (si activées) → <b>net</b><br>
+      Décoche un composant ci-dessus pour l'exclure du calcul (utile pour un CDI sans IFM/ICCP par exemple).
+    </div>
+    <span id="paySaveStatusSettings" style="display:block;margin-top:10px;color:var(--muted);font-size:0.8em;"></span>
+  </details>
+
+  <div class="top-grid">
+    <div class="stat-card total">
+      <div class="label">Total heures (mois)</div>
+      <div class="value" id="statMonthTotal">0h</div>
+    </div>
+    <div class="stat-card jour">
+      <div class="label">Heures de jour</div>
+      <div class="value" id="statMonthJour">0h</div>
+    </div>
+    <div class="stat-card night">
+      <div class="label">Heures de nuit</div>
+      <div class="value" id="statMonthNight">0h</div>
+    </div>
+    <div class="stat-card ot25">
+      <div class="label">Heures sup 25%</div>
+      <div class="value" id="statOT25">0h</div>
+    </div>
+    <div class="stat-card ot50">
+      <div class="label">Heures sup 50%</div>
+      <div class="value" id="statOT50">0h</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total heures sup</div>
+      <div class="value" id="statOTTotal">0h</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Jours travaillés</div>
+      <div class="value" id="statDaysWorked">0</div>
+    </div>
+    <div class="stat-card salaire">
+      <div class="label">Salaire brut (mois)</div>
+      <div class="value" id="statSalaireBrut">0€</div>
+    </div>
+    <div class="stat-card salaire">
+      <div class="label">Net SANS IFM/ICCP</div>
+      <div class="value" id="statSalaireNetSansPrime">0€</div>
+    </div>
+    <div class="stat-card salaire">
+      <div class="label">Net AVEC IFM/ICCP</div>
+      <div class="value" id="statSalaireNetAvecPrime">0€</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="month-nav">
+      <button id="prevMonth">◀</button>
+      <div class="month-label" id="monthLabel">—</div>
+      <button id="nextMonth">▶</button>
+    </div>
+    <div class="calendar" id="calendarHeader"></div>
+    <div class="calendar" id="calendarBody"></div>
+    <div class="legend">
+      <div class="item"><span class="dot nuit0"></span> 00h–08h</div>
+      <div class="item"><span class="dot jour"></span> 08h–16h</div>
+      <div class="item"><span class="dot nuit16"></span> 16h–00h</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Récapitulatif hebdomadaire (mois affiché)</h3>
+    <div id="weekSummary"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">💶 Détail du salaire estimé (mois affiché)</h3>
+    <div class="salary-breakdown" id="salaryBreakdown"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">🏁 Indemnités de fin de mission (intérim)</h3>
+    <div class="salary-breakdown" id="ifmBreakdown"></div>
+  </div>
+
+  <div class="card" id="payFormCard">
+    <h3 style="margin-top:0;">💰 Paie du mois sélectionné</h3>
+    <div class="subtitle" id="payPeriodLabel" style="margin-bottom:12px;"></div>
+
+    <div class="salary-breakdown" id="payPeriodBreakdown"></div>
+
+    <div class="settings-grid" style="margin-top:14px;">
+      <label>📅 Date de versement prévue (calculée) <input type="text" id="payDateLabel" disabled></label>
+      <label>📅 Date réelle du fichier / versement <input type="date" id="payFileDateInput"></label>
+      <label>💶 Montant net reçu (€) <input type="number" id="payReceived" min="0" step="0.01" placeholder="ex: 1450.30"></label>
+      <label>📝 Note (facultatif) <input type="text" id="payNote" placeholder="ex: acompte, régularisation..."></label>
+      <label>📎 Fiche de paie (PDF/image) <input type="file" id="payFile" accept="application/pdf,image/*"></label>
+    </div>
+    <span id="payFileCurrent" style="display:block;margin-top:6px;color:var(--muted);font-size:0.8em;"></span>
+    <div class="modal-actions" style="max-width:340px;margin-top:14px;">
+      <button class="btn-save" id="btnSavePayslip" style="flex:1;">Enregistrer la paie</button>
+      <button class="btn-cancel" id="btnCancelEdit" style="flex:1;display:none;">Annuler modif</button>
+    </div>
+    <span id="paySaveStatus" style="display:block;margin-top:8px;color:var(--muted);font-size:0.8em;"></span>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">📜 Historique complet des paies</h3>
+    <div class="history-filters">
+      <label style="color:var(--muted);font-size:0.85em;">Année :
+        <select id="historyYearFilter"><option value="all">Toutes</option></select>
+      </label>
+    </div>
+    <div id="payslipHistory"><div class="loading">Chargement...</div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalDate">Jour</h3>
+    <div class="shift-option" data-shift="none"><span class="dot none"></span> Pas de travail</div>
+    <div class="shift-option" data-shift="nuit0"><span class="dot nuit0"></span> 00h – 08h</div>
+    <div class="shift-option" data-shift="jour"><span class="dot jour"></span> 08h – 16h</div>
+    <div class="shift-option" data-shift="nuit16"><span class="dot nuit16"></span> 16h – 00h</div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="btnCancel">Annuler</button>
+      <button class="btn-save" id="btnSave">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'shifts-data-v2';
+const SETTINGS_KEY = 'shifts-settings-v3';
+const PAYSLIPS_KEY = 'payslips-data-v2';
+
+let shiftsData = {};
+let payslipsData = {}; // { "YYYY-MM": { received, note, estimated, savedAt, fileDate, fileData, fileName, fileType } }
+let editingMonthKey = null; // when non-null, form edits this month key regardless of calendar month
+let historyYearFilter = 'all';
+
+let settings = {
+  nightStart: "21:00",
+  nightEnd: "06:00",
+  weekThreshold: 35,
+  ot25Range: 8,
+  hourlyRate: 12.33,
+  ot25Rate: 25,
+  ot50Rate: 50,
+  habillageRate: 0.05,
+  habillageCap: 35,
+  mealDay: 4.35,
+  mealNight: 6.52,
+  nightPremiumRate: 15,
+  ifmRate: 10,
+  iccpRate: 10,
+  chargesRate: 22,
+  // Interrupteurs de paramétrage du calcul de paie
+  enableOT: true,
+  enableHabillage: true,
+  enableNightPremium: true,
+  enableMeals: true,
+  enableIFM: true,
+  enableICCP: true,
+  enableCharges: true
+};
+let currentMonth = new Date().getMonth();
+let currentYear = new Date().getFullYear();
+let selectedDateKey = null;
+let pendingShift = null;
+
+const shiftHours = {
+  nuit0: {start: 0, end: 8},
+  jour: {start: 8, end: 16},
+  nuit16: {start: 16, end: 24}
+};
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+function dateKey(y,m,d){ return `${y}-${pad(m+1)}-${pad(d)}`; }
+function fmt(n){ return (Math.round(n*100)/100).toString().replace(/\.00$/,'').replace(/(\.\d)0$/,'$1'); }
+
+function timeToHour(t){
+  const [h,m] = t.split(':').map(Number);
+  return h + m/60;
+}
+
+function computeNightHours(shiftStart, shiftEnd, nightStartStr, nightEndStr){
+  const nStart = timeToHour(nightStartStr);
+  const nEnd = timeToHour(nightEndStr);
+  function overlap(aStart,aEnd,bStart,bEnd){
+    const s = Math.max(aStart,bStart);
+    const e = Math.min(aEnd,bEnd);
+    return Math.max(0, e-s);
+  }
+  let total = 0;
+  if(nStart <= nEnd){
+    total += overlap(shiftStart, shiftEnd, nStart, nEnd);
+  } else {
+    total += overlap(shiftStart, shiftEnd, nStart, 24);
+    total += overlap(shiftStart, shiftEnd, 0, nEnd);
+  }
+  return total;
+}
+
+function getMondayOfWeek(date){
+  const d = new Date(date);
+  const day = (d.getDay()+6)%7;
+  d.setDate(d.getDate()-day);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+// ---------- STORAGE ----------
+// Priorité 1 : serveur API (Docker) — sauvegarde permanente, accessible depuis n'importe quel appareil.
+// Priorité 2 : window.storage si dispo (environnement artifact Claude.ai).
+// Priorité 3 : localStorage du navigateur (dernier recours, si le serveur est injoignable).
+const API_BASE_URL = '/api';
+
+const hasClaudeStorage = (typeof window !== 'undefined' && window.storage && typeof window.storage.get === 'function');
+
+let apiAvailable = null;
+
+async function checkApi(){
+  try{
+    const controller = new AbortController();
+    const timeoutId = setTimeout(()=>controller.abort(), 3000);
+    const res = await fetch(`${API_BASE_URL}/health`, { method: 'GET', cache: 'no-store', signal: controller.signal });
+    clearTimeout(timeoutId);
+    apiAvailable = res.ok;
+  }catch(e){
+    console.warn('API injoignable:', e);
+    apiAvailable = false;
+  }
+  return apiAvailable;
+}
+
+function keyToEndpoint(key){
+  if(key === STORAGE_KEY) return 'shifts';
+  if(key === PAYSLIPS_KEY) return 'payslips';
+  return 'settings';
+}
+
+const apiStore = {
+  async get(key){
+    const endpoint = keyToEndpoint(key);
+    const res = await fetch(`${API_BASE_URL}/${endpoint}`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Réponse API invalide');
+    const json = await res.json();
+    return { key, value: JSON.stringify(json) };
+  },
+  async set(key, value){
+    const endpoint = keyToEndpoint(key);
+    const res = await fetch(`${API_BASE_URL}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: value
+    });
+    if(!res.ok) throw new Error('Échec de la sauvegarde API');
+    return { key, value };
+  }
+};
+
+const localStore = {
+  async get(key){
+    try{
+      const raw = window.localStorage.getItem(key);
+      return raw !== null ? { key, value: raw } : null;
+    }catch(e){ throw e; }
+  },
+  async set(key, value){
+    try{
+      window.localStorage.setItem(key, value);
+      return { key, value };
+    }catch(e){ throw e; }
+  }
+};
+
+const claudeStore = {
+  get: (key)=>window.storage.get(key, false),
+  set: (key,value)=>window.storage.set(key, value, false)
+};
+
+async function getStore(){
+  if(apiAvailable === null) await checkApi();
+  if(apiAvailable) return { store: apiStore, label: 'serveur (Docker)' };
+  if(hasClaudeStorage) return { store: claudeStore, label: 'stockage Claude' };
+  return { store: localStore, label: 'navigateur (local uniquement)' };
+}
+
+async function loadData(){
+  setStatus('Chargement des données...');
+  const { store, label } = await getStore();
+  try{
+    const res = await store.get(STORAGE_KEY);
+    shiftsData = (res && res.value) ? JSON.parse(res.value) : {};
+  }catch(e){
+    shiftsData = {};
+  }
+  try{
+    const res2 = await store.get(SETTINGS_KEY);
+    if(res2 && res2.value){
+      const parsed = JSON.parse(res2.value);
+      if(parsed && Object.keys(parsed).length){
+        settings = Object.assign({}, settings, parsed);
+      }
+    }
+  }catch(e){}
+  try{
+    const res3 = await store.get(PAYSLIPS_KEY);
+    payslipsData = (res3 && res3.value) ? JSON.parse(res3.value) : {};
+  }catch(e){
+    payslipsData = {};
+  }
+  applySettingsToInputs();
+  if(label === 'navigateur (local uniquement)'){
+    setStatus('⚠ Serveur injoignable — sauvegarde LOCALE à ce navigateur seulement (ne sera pas visible ailleurs)', true);
+  } else {
+    setStatus(`✓ Connecté — sauvegarde partagée (${label})`, false);
+  }
+  renderAll();
+}
+
+const SETTINGS_FIELD_IDS = ['nightStart','nightEnd','weekThreshold','ot25Range','hourlyRate','ot25Rate','ot50Rate','habillageRate','habillageCap','mealDay','mealNight','nightPremiumRate','ifmRate','iccpRate','chargesRate'];
+const SETTINGS_CHECKBOX_IDS = ['enableOT','enableHabillage','enableNightPremium','enableMeals','enableIFM','enableICCP','enableCharges'];
+
+function applySettingsToInputs(){
+  SETTINGS_FIELD_IDS.forEach(id=>{ document.getElementById(id).value = settings[id]; });
+  SETTINGS_CHECKBOX_IDS.forEach(id=>{ document.getElementById(id).checked = !!settings[id]; });
+}
+
+function setStatus(msg, isError){
+  const el = document.getElementById('saveStatus');
+  el.textContent = msg;
+  el.style.color = isError ? '#ef4444' : 'var(--muted)';
+}
+
+async function saveShifts(){
+  setStatus('Sauvegarde en cours...');
+  try{
+    const { store, label } = await getStore();
+    const result = await store.set(STORAGE_KEY, JSON.stringify(shiftsData));
+    if(result){
+      setStatus(label === 'navigateur (local uniquement)' ? '✓ Sauvegardé — ⚠ localement à ce navigateur seulement' : `✓ Sauvegardé (${label})`, label === 'navigateur (local uniquement)');
+    } else {
+      setStatus('⚠ La sauvegarde a échoué, réessaie.', true);
+    }
+  }catch(e){
+    setStatus('⚠ Erreur de sauvegarde : ' + (e && e.message ? e.message : e), true);
+  }
+}
+
+let settingsSaveTimeout = null;
+function saveSettingsDebounced(){
+  clearTimeout(settingsSaveTimeout);
+  settingsSaveTimeout = setTimeout(saveSettings, 400);
+}
+
+async function saveSettings(){
+  settings.nightStart = document.getElementById('nightStart').value || settings.nightStart;
+  settings.nightEnd = document.getElementById('nightEnd').value || settings.nightEnd;
+  settings.weekThreshold = parseFloat(document.getElementById('weekThreshold').value) || 0;
+  settings.ot25Range = parseFloat(document.getElementById('ot25Range').value) || 0;
+  settings.hourlyRate = parseFloat(document.getElementById('hourlyRate').value) || 0;
+  settings.ot25Rate = parseFloat(document.getElementById('ot25Rate').value) || 0;
+  settings.ot50Rate = parseFloat(document.getElementById('ot50Rate').value) || 0;
+  settings.habillageRate = parseFloat(document.getElementById('habillageRate').value) || 0;
+  settings.habillageCap = parseFloat(document.getElementById('habillageCap').value) || 0;
+  settings.mealDay = parseFloat(document.getElementById('mealDay').value) || 0;
+  settings.mealNight = parseFloat(document.getElementById('mealNight').value) || 0;
+  settings.nightPremiumRate = parseFloat(document.getElementById('nightPremiumRate').value) || 0;
+  settings.ifmRate = parseFloat(document.getElementById('ifmRate').value) || 0;
+  settings.iccpRate = parseFloat(document.getElementById('iccpRate').value) || 0;
+  settings.chargesRate = parseFloat(document.getElementById('chargesRate').value) || 0;
+  SETTINGS_CHECKBOX_IDS.forEach(id=>{ settings[id] = document.getElementById(id).checked; });
+
+  setStatus('Sauvegarde des réglages...');
+  const statusEl2 = document.getElementById('paySaveStatusSettings');
+  try{
+    const { store, label } = await getStore();
+    const result = await store.set(SETTINGS_KEY, JSON.stringify(settings));
+    if(result){
+      const msg = label === 'navigateur (local uniquement)' ? '✓ Réglages sauvegardés — ⚠ localement seulement' : `✓ Réglages sauvegardés (${label})`;
+      setStatus(msg, label === 'navigateur (local uniquement)');
+      if(statusEl2) statusEl2.textContent = msg;
+    } else {
+      setStatus('⚠ Échec de la sauvegarde des réglages', true);
+      if(statusEl2) statusEl2.textContent = '⚠ Échec de la sauvegarde des réglages';
+    }
+  }catch(e){
+    setStatus('⚠ Erreur : ' + (e && e.message ? e.message : e), true);
+  }
+  renderAll();
+}
+
+// ---------- CALENDAR ----------
+const MONTH_NAMES = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const DOW_NAMES = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+
+function renderCalendarHeader(){
+  document.getElementById('calendarHeader').innerHTML = DOW_NAMES.map(d=>`<div class="dow">${d}</div>`).join('');
+}
+
+function renderCalendarBody(){
+  const body = document.getElementById('calendarBody');
+  body.innerHTML = '';
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  let startDow = (firstDay.getDay()+6)%7;
+  const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+
+  for(let i=0;i<startDow;i++){
+    const empty = document.createElement('div');
+    empty.className = 'day empty';
+    body.appendChild(empty);
+  }
+
+  const today = new Date();
+  for(let d=1; d<=daysInMonth; d++){
+    const key = dateKey(currentYear, currentMonth, d);
+    const shift = shiftsData[key];
+    const cell = document.createElement('div');
+    cell.className = 'day';
+    if(today.getFullYear()===currentYear && today.getMonth()===currentMonth && today.getDate()===d){
+      cell.classList.add('today');
+    }
+    let tagHtml = '';
+    if(shift === 'nuit0') tagHtml = '<div class="shift-tag shift-nuit0">00–08h</div>';
+    else if(shift === 'jour') tagHtml = '<div class="shift-tag shift-jour">08–16h</div>';
+    else if(shift === 'nuit16') tagHtml = '<div class="shift-tag shift-nuit16">16–00h</div>';
+    cell.innerHTML = `<div class="num">${d}</div>${tagHtml}`;
+    cell.addEventListener('click', ()=>openModal(key, currentYear, currentMonth, d));
+    body.appendChild(cell);
+  }
+}
+
+function openModal(key, y, m, d){
+  selectedDateKey = key;
+  pendingShift = shiftsData[key] || 'none';
+  document.getElementById('modalDate').textContent = `${d} ${MONTH_NAMES[m]} ${y}`;
+  document.querySelectorAll('.shift-option').forEach(opt=>{
+    opt.classList.toggle('selected', opt.dataset.shift === pendingShift);
+  });
+  document.getElementById('modalOverlay').classList.add('active');
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('active');
+  selectedDateKey = null;
+}
+document.querySelectorAll('.shift-option').forEach(opt=>{
+  opt.addEventListener('click', ()=>{
+    pendingShift = opt.dataset.shift;
+    document.querySelectorAll('.shift-option').forEach(o=>o.classList.remove('selected'));
+    opt.classList.add('selected');
+  });
+});
+document.getElementById('btnCancel').addEventListener('click', closeModal);
+document.getElementById('btnSave').addEventListener('click', async ()=>{
+  if(selectedDateKey){
+    if(pendingShift === 'none'){
+      delete shiftsData[selectedDateKey];
+    } else {
+      shiftsData[selectedDateKey] = pendingShift;
+    }
+    await saveShifts();
+    renderAll();
+  }
+  closeModal();
+});
+document.getElementById('modalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'modalOverlay') closeModal();
+});
+document.getElementById('prevMonth').addEventListener('click', ()=>{
+  currentMonth--; if(currentMonth<0){currentMonth=11;currentYear--;}
+  editingMonthKey = null;
+  renderAll();
+});
+document.getElementById('nextMonth').addEventListener('click', ()=>{
+  currentMonth++; if(currentMonth>11){currentMonth=0;currentYear++;}
+  editingMonthKey = null;
+  renderAll();
+});
+SETTINGS_FIELD_IDS.forEach(id=>{
+  document.getElementById(id).addEventListener('change', saveSettingsDebounced);
+  document.getElementById(id).addEventListener('input', saveSettingsDebounced);
+});
+SETTINGS_CHECKBOX_IDS.forEach(id=>{
+  document.getElementById(id).addEventListener('change', saveSettingsDebounced);
+});
+
+// ---------- MOTEUR DE CALCUL DE PAIE (paramétrable) ----------
+// Prend un total d'heures normales/OT25/OT50/nuit/repas pour une période et
+// applique les composants activés dans `settings` pour produire le détail complet.
+function applyPayFormula(base){
+  const s = settings;
+  const salaryOT25Amt = s.enableOT ? base.ot25Amt : 0;
+  const salaryOT50Amt = s.enableOT ? base.ot50Amt : 0;
+  const salaryHabillage = s.enableHabillage ? base.habillageAmt : 0;
+  const salaryNightPremium = s.enableNightPremium ? base.nightPremiumAmt : 0;
+  const salaryMeals = s.enableMeals ? base.mealsAmt : 0;
+
+  const brutBase = base.salaryBase + salaryOT25Amt + salaryOT50Amt + salaryHabillage + salaryNightPremium;
+
+  const ifmAmount = s.enableIFM ? brutBase * (s.ifmRate/100) : 0;
+  const iccpAmount = s.enableICCP ? (brutBase + ifmAmount) * (s.iccpRate/100) : 0;
+  const totalBrut = brutBase + ifmAmount + iccpAmount;
+
+  const chargesFactor = s.enableCharges ? (1 - s.chargesRate/100) : 1;
+  const totalNetSansPrimes = brutBase * chargesFactor + salaryMeals;
+  const totalNetAvecPrimes = totalBrut * chargesFactor + salaryMeals;
+
+  return {
+    salaryBase: base.salaryBase, salaryOT25Amt, salaryOT50Amt, salaryHabillage, salaryNightPremium, salaryMeals,
+    brutBase, ifmAmount, iccpAmount, totalBrut, totalNetAvecPrimes, totalNetSansPrimes
+  };
+}
+
+// ---------- STATS ----------
+function computeMonthStats(){
+  const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+  let totalHours = 0, nightHours = 0, daysWorked = 0;
+
+  const weekTotals = {};
+  const allDatesInvolved = new Set();
+  for(let d=1; d<=daysInMonth; d++){
+    const dateObj = new Date(currentYear, currentMonth, d);
+    const monday = getMondayOfWeek(dateObj);
+    for(let i=0;i<7;i++){
+      const dt = new Date(monday);
+      dt.setDate(monday.getDate()+i);
+      allDatesInvolved.add(`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`);
+    }
+  }
+
+  allDatesInvolved.forEach(key=>{
+    const shift = shiftsData[key];
+    if(!shift) return;
+    const [y,m,d] = key.split('-').map(Number);
+    const dateObj = new Date(y, m-1, d);
+    const monday = getMondayOfWeek(dateObj);
+    const weekKey = `${monday.getFullYear()}-${pad(monday.getMonth()+1)}-${pad(monday.getDate())}`;
+    const {start,end} = shiftHours[shift];
+    const hrs = end - start;
+    if(!weekTotals[weekKey]) weekTotals[weekKey] = {hours:0, monday: monday, days:[]};
+    weekTotals[weekKey].hours += hrs;
+    weekTotals[weekKey].days.push({key, shift, hrs});
+
+    if(m-1 === currentMonth && y === currentYear){
+      totalHours += hrs;
+      daysWorked++;
+      nightHours += computeNightHours(start, end, settings.nightStart, settings.nightEnd);
+    }
+  });
+
+  let monthOT25 = 0, monthOT50 = 0;
+  let salaryBase = 0, ot25Amt = 0, ot50Amt = 0, habillageAmt = 0, mealsAmt = 0;
+  const weekRows = [];
+
+  Object.keys(weekTotals).sort().forEach(wk=>{
+    const wt = weekTotals[wk];
+    const threshold = settings.weekThreshold;
+    const ot25Range = settings.ot25Range;
+    const excess = Math.max(0, wt.hours - threshold);
+    const ot25 = Math.min(excess, ot25Range);
+    const ot50 = Math.max(0, excess - ot25Range);
+
+    const sunday = new Date(wt.monday);
+    sunday.setDate(sunday.getDate()+6);
+    const touchesMonth = (wt.monday.getMonth()===currentMonth && wt.monday.getFullYear()===currentYear) ||
+                          (sunday.getMonth()===currentMonth && sunday.getFullYear()===currentYear);
+
+    let weekOT25InMonth = 0, weekOT50InMonth = 0, weekNormalInMonth = 0;
+    let habillageHoursInMonth = 0;
+    let mealsInMonth = 0;
+
+    let runningTotal = 0;
+    wt.days.sort((a,b)=> a.key.localeCompare(b.key));
+    wt.days.forEach(dayInfo=>{
+      const before = runningTotal;
+      const after = runningTotal + dayInfo.hrs;
+      runningTotal = after;
+
+      const dayNormal = Math.max(0, Math.min(after, threshold) - before);
+      const dayOT25 = Math.max(0, Math.min(after, threshold + ot25Range) - Math.max(before, threshold));
+      const dayOT50 = Math.max(0, after - Math.max(before, threshold + ot25Range));
+
+      const [yy,mm] = dayInfo.key.split('-').map(Number);
+      const inDisplayedMonth = (mm-1 === currentMonth && yy === currentYear);
+      if(inDisplayedMonth){
+        weekNormalInMonth += dayNormal;
+        weekOT25InMonth += dayOT25;
+        weekOT50InMonth += dayOT50;
+        habillageHoursInMonth += dayInfo.hrs;
+        const isNightShift = dayInfo.shift === 'nuit0' || dayInfo.shift === 'nuit16';
+        mealsInMonth += isNightShift ? settings.mealNight : settings.mealDay;
+      }
+    });
+
+    monthOT25 += weekOT25InMonth;
+    monthOT50 += weekOT50InMonth;
+
+    salaryBase += weekNormalInMonth * settings.hourlyRate;
+    ot25Amt += weekOT25InMonth * settings.hourlyRate * (1 + settings.ot25Rate/100);
+    ot50Amt += weekOT50InMonth * settings.hourlyRate * (1 + settings.ot50Rate/100);
+    const habillageCapped = Math.min(habillageHoursInMonth, settings.habillageCap);
+    habillageAmt += habillageCapped * settings.habillageRate;
+    mealsAmt += mealsInMonth;
+
+    if(touchesMonth){
+      weekRows.push({
+        label: `Semaine du ${pad(wt.monday.getDate())}/${pad(wt.monday.getMonth()+1)} au ${pad(sunday.getDate())}/${pad(sunday.getMonth()+1)}`,
+        hours: wt.hours,
+        ot25, ot50
+      });
+    }
+  });
+
+  const nightPremiumAmt = nightHours * settings.hourlyRate * (settings.nightPremiumRate/100);
+  const paye = applyPayFormula({ salaryBase, ot25Amt, ot50Amt, habillageAmt, nightPremiumAmt, mealsAmt });
+
+  return Object.assign({
+    totalHours, nightHours, jourHours: totalHours - nightHours, daysWorked,
+    weekRows, monthOT25, monthOT50, monthOTTotal: monthOT25+monthOT50
+  }, paye);
+}
+
+function renderStats(){
+  const s = computeMonthStats();
+  document.getElementById('statMonthTotal').textContent = fmt(s.totalHours) + 'h';
+  document.getElementById('statMonthJour').textContent = fmt(s.jourHours) + 'h';
+  document.getElementById('statMonthNight').textContent = fmt(s.nightHours) + 'h';
+  document.getElementById('statOT25').textContent = fmt(s.monthOT25) + 'h';
+  document.getElementById('statOT50').textContent = fmt(s.monthOT50) + 'h';
+  document.getElementById('statOTTotal').textContent = fmt(s.monthOTTotal) + 'h';
+  document.getElementById('statDaysWorked').textContent = s.daysWorked;
+  document.getElementById('statSalaireBrut').textContent = fmt(s.totalBrut) + '€';
+  document.getElementById('statSalaireNetSansPrime').textContent = fmt(s.totalNetSansPrimes) + '€';
+  document.getElementById('statSalaireNetAvecPrime').textContent = fmt(s.totalNetAvecPrimes) + '€';
+
+  const weekSummaryEl = document.getElementById('weekSummary');
+  if(s.weekRows.length === 0){
+    weekSummaryEl.innerHTML = '<div class="loading">Aucune donnée pour ce mois.</div>';
+  } else {
+    weekSummaryEl.innerHTML = s.weekRows.map(w=>`
+      <div class="week-row">
+        <span>${w.label} — ${fmt(w.hours)}h</span>
+        <span class="tags">
+          ${w.ot25>0 ? `<span class="tag-ot25">+${fmt(w.ot25)}h à 25%</span>` : ''}
+          ${w.ot50>0 ? `<span class="tag-ot50">+${fmt(w.ot50)}h à 50%</span>` : ''}
+        </span>
+      </div>
+    `).join('');
+  }
+
+  const dis = (enabled)=> enabled ? '' : 'line-disabled';
+  const breakdown = document.getElementById('salaryBreakdown');
+  breakdown.innerHTML = `
+    <span>Heures normales (${fmt(s.totalHours - s.monthOTTotal)}h × ${settings.hourlyRate}€)</span><span>${fmt(s.salaryBase)}€</span>
+    <span class="${dis(settings.enableOT)}">Heures sup 25% (${fmt(s.monthOT25)}h × ${settings.hourlyRate}€ × ${(1+settings.ot25Rate/100).toFixed(2)})</span><span class="${dis(settings.enableOT)}">${fmt(s.salaryOT25Amt)}€</span>
+    <span class="${dis(settings.enableOT)}">Heures sup 50% (${fmt(s.monthOT50)}h × ${settings.hourlyRate}€ × ${(1+settings.ot50Rate/100).toFixed(2)})</span><span class="${dis(settings.enableOT)}">${fmt(s.salaryOT50Amt)}€</span>
+    <span class="${dis(settings.enableHabillage)}">Prime d'habillage</span><span class="${dis(settings.enableHabillage)}">${fmt(s.salaryHabillage)}€</span>
+    <span class="${dis(settings.enableNightPremium)}">Majoration heures de nuit (${fmt(s.nightHours)}h × ${settings.hourlyRate}€ × ${settings.nightPremiumRate}%)</span><span class="${dis(settings.enableNightPremium)}">${fmt(s.salaryNightPremium)}€</span>
+    <span class="line-total">Sous-total brut (base + sup + habillage + nuit)</span><span class="line-total">${fmt(s.brutBase)}€</span>
+  `;
+
+  const ifmBreakdown = document.getElementById('ifmBreakdown');
+  ifmBreakdown.innerHTML = `
+    <span>Salaire brut de base (heures + habillage + nuit)</span><span>${fmt(s.brutBase)}€</span>
+    <span class="line-total">→ Net SANS IFM/ICCP (charges ${settings.chargesRate}% + repas)</span><span class="line-total">${fmt(s.totalNetSansPrimes)}€</span>
+    <span class="${dis(settings.enableIFM)}" style="padding-top:10px;">IFM - Indemnité de fin de mission (${settings.ifmRate}%)</span><span class="${dis(settings.enableIFM)}" style="padding-top:10px;">+${fmt(s.ifmAmount)}€</span>
+    <span class="${dis(settings.enableICCP)}">ICCP - Indemnité congés payés (${settings.iccpRate}% sur brut+IFM)</span><span class="${dis(settings.enableICCP)}">+${fmt(s.iccpAmount)}€</span>
+    <span>Total brut (salaire + IFM + ICCP)</span><span>${fmt(s.totalBrut)}€</span>
+    <span class="line-total">→ Net AVEC IFM/ICCP (charges ${settings.chargesRate}% + repas)</span><span class="line-total">${fmt(s.totalNetAvecPrimes)}€</span>
+    <span style="padding-top:10px;color:var(--good);font-weight:700;">Différence apportée par IFM + ICCP</span><span style="padding-top:10px;color:var(--good);font-weight:700;">+${fmt(s.totalNetAvecPrimes - s.totalNetSansPrimes)}€</span>
+  `;
+}
+
+// ---------- PAIES ----------
+function activeMonthKey(){
+  // La clé du mois en cours d'édition dans le formulaire de paie : soit un
+  // mois d'historique explicitement sélectionné pour modification, soit le
+  // mois affiché dans le calendrier.
+  return editingMonthKey || `${currentYear}-${pad(currentMonth+1)}`;
+}
+function monthKeyParts(mk){
+  const [y,m] = mk.split('-').map(Number);
+  return { y, m0: m-1 };
+}
+
+// Le versement a lieu le 12 du mois SUIVANT le mois travaillé
+function payDateForMonth(year, month){
+  let payMonth = month + 1, payYear = year;
+  if(payMonth > 11){ payMonth = 0; payYear++; }
+  return new Date(payYear, payMonth, 12);
+}
+
+// Période de paie = du 12 du mois précédent au 11 du mois travaillé (mk = "YYYY-MM")
+function periodBoundsForMonthKey(mk){
+  const { y, m0 } = monthKeyParts(mk);
+  let startMonth = m0 - 1, startYear = y;
+  if(startMonth < 0){ startMonth = 11; startYear--; }
+  const start = new Date(startYear, startMonth, 12);
+  const end = new Date(y, m0, 11);
+  return { start, end };
+}
+
+function renderPayDateLabel(){
+  const mk = activeMonthKey();
+  const { y, m0 } = monthKeyParts(mk);
+  const d = payDateForMonth(y, m0);
+  const dowNames = ["dim","lun","mar","mer","jeu","ven","sam"];
+  document.getElementById('payDateLabel').value = `${dowNames[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+
+  const { start, end } = periodBoundsForMonthKey(mk);
+  const editingBadge = editingMonthKey ? ' — ✏️ modification d\'un mois passé' : '';
+  document.getElementById('payPeriodLabel').textContent =
+    `Mois travaillé : ${MONTH_NAMES[m0]} ${y} (période du ${pad(start.getDate())}/${pad(start.getMonth()+1)}/${start.getFullYear()} au ${pad(end.getDate())}/${pad(end.getMonth()+1)}/${end.getFullYear()}), versée normalement le 12 du mois suivant.${editingBadge}`;
+  document.getElementById('btnCancelEdit').style.display = editingMonthKey ? 'block' : 'none';
+}
+
+// Version "période 12→11" de computeMonthStats : même logique de calcul
+// (nuit, heures sup hebdo) mais filtrée sur un intervalle de dates, puis
+// passée par le même moteur de calcul paramétrable applyPayFormula().
+function computePeriodStats(periodStart, periodEnd){
+  const dayKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const inPeriod = d => d >= periodStart && d <= periodEnd;
+
+  let totalHours = 0, nightHours = 0, daysWorked = 0;
+  const weekTotals = {};
+
+  const firstMonday = getMondayOfWeek(periodStart);
+  const lastSunday = getMondayOfWeek(periodEnd);
+  lastSunday.setDate(lastSunday.getDate()+6);
+
+  for(let dt = new Date(firstMonday); dt <= lastSunday; dt.setDate(dt.getDate()+1)){
+    const key = dayKey(dt);
+    const shift = shiftsData[key];
+    if(!shift) continue;
+    const monday = getMondayOfWeek(dt);
+    const weekKey = dayKey(monday);
+    const {start,end} = shiftHours[shift];
+    const hrs = end - start;
+    if(!weekTotals[weekKey]) weekTotals[weekKey] = {hours:0, monday: new Date(monday), days:[]};
+    weekTotals[weekKey].hours += hrs;
+    weekTotals[weekKey].days.push({key, shift, hrs, dateObj:new Date(dt)});
+
+    if(inPeriod(dt)){
+      totalHours += hrs;
+      daysWorked++;
+      nightHours += computeNightHours(start, end, settings.nightStart, settings.nightEnd);
+    }
+  }
+
+  let monthOT25 = 0, monthOT50 = 0;
+  let salaryBase = 0, ot25Amt = 0, ot50Amt = 0, habillageAmt = 0, mealsAmt = 0;
+  const weekRows = [];
+
+  Object.keys(weekTotals).sort().forEach(wk=>{
+    const wt = weekTotals[wk];
+    const threshold = settings.weekThreshold;
+    const ot25Range = settings.ot25Range;
+    const excess = Math.max(0, wt.hours - threshold);
+    const ot25 = Math.min(excess, ot25Range);
+    const ot50 = Math.max(0, excess - ot25Range);
+
+    const sunday = new Date(wt.monday);
+    sunday.setDate(sunday.getDate()+6);
+    const touchesPeriod = wt.days.some(dd => inPeriod(dd.dateObj));
+
+    let weekOT25InPeriod = 0, weekOT50InPeriod = 0, weekNormalInPeriod = 0;
+    let habillageHoursInPeriod = 0;
+    let mealsInPeriod = 0;
+
+    let runningTotal = 0;
+    wt.days.sort((a,b)=> a.key.localeCompare(b.key));
+    wt.days.forEach(dayInfo=>{
+      const before = runningTotal;
+      const after = runningTotal + dayInfo.hrs;
+      runningTotal = after;
+
+      const dayNormal = Math.max(0, Math.min(after, threshold) - before);
+      const dayOT25 = Math.max(0, Math.min(after, threshold + ot25Range) - Math.max(before, threshold));
+      const dayOT50 = Math.max(0, after - Math.max(before, threshold + ot25Range));
+
+      if(inPeriod(dayInfo.dateObj)){
+        weekNormalInPeriod += dayNormal;
+        weekOT25InPeriod += dayOT25;
+        weekOT50InPeriod += dayOT50;
+        habillageHoursInPeriod += dayInfo.hrs;
+        const isNightShift = dayInfo.shift === 'nuit0' || dayInfo.shift === 'nuit16';
+        mealsInPeriod += isNightShift ? settings.mealNight : settings.mealDay;
+      }
+    });
+
+    monthOT25 += weekOT25InPeriod;
+    monthOT50 += weekOT50InPeriod;
+
+    salaryBase += weekNormalInPeriod * settings.hourlyRate;
+    ot25Amt += weekOT25InPeriod * settings.hourlyRate * (1 + settings.ot25Rate/100);
+    ot50Amt += weekOT50InPeriod * settings.hourlyRate * (1 + settings.ot50Rate/100);
+    const habillageCapped = Math.min(habillageHoursInPeriod, settings.habillageCap);
+    habillageAmt += habillageCapped * settings.habillageRate;
+    mealsAmt += mealsInPeriod;
+
+    if(touchesPeriod){
+      weekRows.push({
+        label: `Semaine du ${pad(wt.monday.getDate())}/${pad(wt.monday.getMonth()+1)} au ${pad(sunday.getDate())}/${pad(sunday.getMonth()+1)}`,
+        hours: wt.hours,
+        ot25, ot50
+      });
+    }
+  });
+
+  const nightPremiumAmt = nightHours * settings.hourlyRate * (settings.nightPremiumRate/100);
+  const paye = applyPayFormula({ salaryBase, ot25Amt, ot50Amt, habillageAmt, nightPremiumAmt, mealsAmt });
+
+  return Object.assign({
+    totalHours, nightHours, jourHours: totalHours - nightHours, daysWorked,
+    weekRows, monthOT25, monthOT50, monthOTTotal: monthOT25+monthOT50
+  }, paye);
+}
+
+function renderPayPeriodBreakdown(){
+  const mk = activeMonthKey();
+  const { start, end } = periodBoundsForMonthKey(mk);
+  const s = computePeriodStats(start, end);
+  const el = document.getElementById('payPeriodBreakdown');
+  const dis = (enabled)=> enabled ? '' : 'line-disabled';
+  el.innerHTML = `
+    <span>Heures travaillées (${fmt(s.totalHours)}h dont ${fmt(s.nightHours)}h de nuit)</span><span>${s.daysWorked} jours</span>
+    <span>Heures normales (${fmt(s.totalHours - s.monthOTTotal)}h × ${settings.hourlyRate}€)</span><span>${fmt(s.salaryBase)}€</span>
+    <span class="${dis(settings.enableOT)}">Heures sup 25% (${fmt(s.monthOT25)}h)</span><span class="${dis(settings.enableOT)}">${fmt(s.salaryOT25Amt)}€</span>
+    <span class="${dis(settings.enableOT)}">Heures sup 50% (${fmt(s.monthOT50)}h)</span><span class="${dis(settings.enableOT)}">${fmt(s.salaryOT50Amt)}€</span>
+    <span class="${dis(settings.enableHabillage)}">Prime d'habillage</span><span class="${dis(settings.enableHabillage)}">${fmt(s.salaryHabillage)}€</span>
+    <span class="${dis(settings.enableNightPremium)}">Majoration heures de nuit</span><span class="${dis(settings.enableNightPremium)}">${fmt(s.salaryNightPremium)}€</span>
+    <span class="${dis(settings.enableMeals)}">Indemnités repas</span><span class="${dis(settings.enableMeals)}">${fmt(s.salaryMeals)}€</span>
+    <span class="line-total">Sous-total brut</span><span class="line-total">${fmt(s.brutBase)}€</span>
+    <span class="${dis(settings.enableIFM)}">IFM (${settings.ifmRate}%)</span><span class="${dis(settings.enableIFM)}">+${fmt(s.ifmAmount)}€</span>
+    <span class="${dis(settings.enableICCP)}">ICCP (${settings.iccpRate}%)</span><span class="${dis(settings.enableICCP)}">+${fmt(s.iccpAmount)}€</span>
+    <span class="line-total">Total brut (salaire + IFM + ICCP)</span><span class="line-total">${fmt(s.totalBrut)}€</span>
+    <span class="line-total">→ Net SANS IFM/ICCP</span><span class="line-total">${fmt(s.totalNetSansPrimes)}€</span>
+    <span class="line-total" style="color:var(--good);">→ Net ESTIMÉ (avec IFM/ICCP)</span><span class="line-total" style="color:var(--good);">${fmt(s.totalNetAvecPrimes)}€</span>
+  `;
+  return s;
+}
+
+function loadPayslipInputsForCurrentMonth(){
+  const mk = activeMonthKey();
+  const entry = payslipsData[mk];
+  document.getElementById('payReceived').value = entry ? (entry.received ?? '') : '';
+  document.getElementById('payNote').value = entry ? (entry.note || '') : '';
+  document.getElementById('payFile').value = '';
+  document.getElementById('payFileDateInput').value = entry && entry.fileDate ? entry.fileDate : '';
+  const fileInfoEl = document.getElementById('payFileCurrent');
+  fileInfoEl.innerHTML = (entry && entry.fileName)
+    ? `📎 Fichier déjà enregistré (${entry.fileDate || 'date non précisée'}) : <a href="#" id="viewCurrentPayFile">${entry.fileName}</a> (sera conservé si tu n'en choisis pas un nouveau)`
+    : '';
+  if(entry && entry.fileName){
+    document.getElementById('viewCurrentPayFile').addEventListener('click', (e)=>{
+      e.preventDefault();
+      openStoredPayslipFile(entry);
+    });
+  }
+  renderPayPeriodBreakdown();
+}
+
+function openStoredPayslipFile(entry){
+  if(!entry || !entry.fileData) return;
+  const byteChars = atob(entry.fileData);
+  const bytes = new Uint8Array(byteChars.length);
+  for(let i=0;i<byteChars.length;i++) bytes[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([bytes], { type: entry.fileType || 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+
+function readFileAsBase64(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(new Error('Lecture du fichier impossible'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function savePayslip(){
+  const mk = activeMonthKey();
+  const receivedVal = document.getElementById('payReceived').value;
+  const noteVal = document.getElementById('payNote').value;
+  const fileDateVal = document.getElementById('payFileDateInput').value;
+  const fileInput = document.getElementById('payFile');
+  const statusEl = document.getElementById('paySaveStatus');
+
+  if(receivedVal === ''){
+    delete payslipsData[mk];
+  } else {
+    const { start, end } = periodBoundsForMonthKey(mk);
+    const s = computePeriodStats(start, end);
+    const existing = payslipsData[mk] || {};
+
+    let fileData = existing.fileData, fileName = existing.fileName, fileType = existing.fileType;
+    if(fileInput.files && fileInput.files[0]){
+      const file = fileInput.files[0];
+      statusEl.textContent = 'Lecture du fichier...';
+      try{
+        fileData = await readFileAsBase64(file);
+        fileName = file.name;
+        fileType = file.type;
+      }catch(e){
+        statusEl.textContent = '⚠ Impossible de lire le fichier joint';
+        statusEl.style.color = '#ef4444';
+        return;
+      }
+    }
+
+    payslipsData[mk] = {
+      received: parseFloat(receivedVal),
+      note: noteVal || '',
+      fileDate: fileDateVal || existing.fileDate || '',
+      estimated: Math.round(s.totalNetAvecPrimes * 100) / 100,
+      savedAt: new Date().toISOString(),
+      fileData, fileName, fileType
+    };
+  }
+
+  statusEl.textContent = 'Sauvegarde...';
+  try{
+    const { store, label } = await getStore();
+    const result = await store.set(PAYSLIPS_KEY, JSON.stringify(payslipsData));
+    if(result){
+      statusEl.textContent = label === 'navigateur (local uniquement)' ? '✓ Enregistré — ⚠ localement seulement' : `✓ Enregistré (${label})`;
+      statusEl.style.color = 'var(--muted)';
+    } else {
+      statusEl.textContent = '⚠ Échec de la sauvegarde';
+      statusEl.style.color = '#ef4444';
+    }
+  }catch(e){
+    statusEl.textContent = '⚠ Erreur : ' + (e && e.message ? e.message : e);
+    statusEl.style.color = '#ef4444';
+  }
+  loadPayslipInputsForCurrentMonth();
+  renderPayDateLabel();
+  renderPayslipHistory();
+}
+
+async function deletePayslip(monthKey){
+  delete payslipsData[monthKey];
+  try{
+    const { store } = await getStore();
+    await store.set(PAYSLIPS_KEY, JSON.stringify(payslipsData));
+  }catch(e){}
+  if(monthKey === activeMonthKey()) loadPayslipInputsForCurrentMonth();
+  renderPayslipHistory();
+}
+
+// Ouvre le formulaire de paie sur un mois donné de l'historique, même s'il
+// ne s'agit pas du mois affiché dans le calendrier — permet de toujours
+// pouvoir modifier une paie passée, quel que soit le mois consulté.
+function editPayslipMonth(monthKey){
+  editingMonthKey = monthKey;
+  loadPayslipInputsForCurrentMonth();
+  renderPayDateLabel();
+  renderPayslipHistory();
+  document.getElementById('payFormCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+document.getElementById('btnCancelEdit').addEventListener('click', ()=>{
+  editingMonthKey = null;
+  loadPayslipInputsForCurrentMonth();
+  renderPayDateLabel();
+  renderPayslipHistory();
+});
+
+function populateHistoryYearFilter(){
+  const sel = document.getElementById('historyYearFilter');
+  const years = new Set();
+  Object.keys(payslipsData).forEach(mk=> years.add(mk.split('-')[0]));
+  const sortedYears = Array.from(years).sort().reverse();
+  const prevValue = historyYearFilter;
+  sel.innerHTML = '<option value="all">Toutes</option>' + sortedYears.map(y=>`<option value="${y}">${y}</option>`).join('');
+  sel.value = sortedYears.includes(prevValue) ? prevValue : 'all';
+  historyYearFilter = sel.value;
+}
+document.getElementById('historyYearFilter').addEventListener('change', (e)=>{
+  historyYearFilter = e.target.value;
+  renderPayslipHistory();
+});
+
+function renderPayslipHistory(){
+  populateHistoryYearFilter();
+  const el = document.getElementById('payslipHistory');
+  let keys = Object.keys(payslipsData).sort().reverse();
+  if(historyYearFilter !== 'all'){
+    keys = keys.filter(mk=> mk.startsWith(historyYearFilter + '-'));
+  }
+  if(keys.length === 0){
+    el.innerHTML = '<div class="loading">Aucune paie enregistrée pour l\'instant.</div>';
+    return;
+  }
+  const activeMk = activeMonthKey();
+  const rows = keys.map(mk=>{
+    const [y,m] = mk.split('-').map(Number);
+    const entry = payslipsData[mk];
+    const payDate = payDateForMonth(y, m-1);
+    const diff = Math.round((entry.received - (entry.estimated||0)) * 100) / 100;
+    let diffClass = 'diff-zero', diffLabel = '—';
+    if(entry.estimated !== undefined){
+      diffClass = diff > 0.01 ? 'diff-pos' : (diff < -0.01 ? 'diff-neg' : 'diff-zero');
+      diffLabel = (diff > 0 ? '+' : '') + fmt(diff) + '€';
+    }
+    const rowClass = (editingMonthKey === mk) ? 'editing-row' : '';
+    return `
+      <tr class="${rowClass}">
+        <td>${MONTH_NAMES[m-1]} ${y}</td>
+        <td>${entry.fileDate ? entry.fileDate.split('-').reverse().join('/') : `${pad(payDate.getDate())}/${pad(payDate.getMonth()+1)}/${payDate.getFullYear()} (prévue)`}</td>
+        <td>${fmt(entry.received)}€</td>
+        <td>${entry.estimated !== undefined ? fmt(entry.estimated)+'€' : '—'}</td>
+        <td class="${diffClass}">${diffLabel}</td>
+        <td class="note">${entry.note ? entry.note : ''}</td>
+        <td>${entry.fileName ? `<a href="#" class="btn-view-payslip" data-month="${mk}" title="Ouvrir la fiche de paie">📎</a>` : ''}</td>
+        <td><button class="btn-edit-payslip" title="Modifier" data-month="${mk}">✏️</button></td>
+        <td><button class="btn-del-payslip" title="Supprimer" data-month="${mk}">🗑</button></td>
+      </tr>
+    `;
+  }).join('');
+  el.innerHTML = `
+    <table class="payslip-table">
+      <thead>
+        <tr>
+          <th>Mois travaillé</th>
+          <th>Date fiche / versement</th>
+          <th>Reçu</th>
+          <th>Estimé (au moment de la saisie)</th>
+          <th>Écart</th>
+          <th>Note</th>
+          <th>Fiche</th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+  el.querySelectorAll('.btn-del-payslip').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(confirm('Supprimer cette paie de l\'historique ?')) deletePayslip(btn.dataset.month);
+    });
+  });
+  el.querySelectorAll('.btn-edit-payslip').forEach(btn=>{
+    btn.addEventListener('click', ()=> editPayslipMonth(btn.dataset.month));
+  });
+  el.querySelectorAll('.btn-view-payslip').forEach(link=>{
+    link.addEventListener('click', (e)=>{
+      e.preventDefault();
+      openStoredPayslipFile(payslipsData[link.dataset.month]);
+    });
+  });
+}
+
+document.getElementById('btnSavePayslip').addEventListener('click', savePayslip);
+
+function renderAll(){
+  document.getElementById('monthLabel').textContent = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
+  renderCalendarHeader();
+  renderCalendarBody();
+  renderStats();
+  renderPayDateLabel();
+  loadPayslipInputsForCurrentMonth();
+  renderPayslipHistory();
+}
+
+loadData();
+</script>
+</body>
+</html>
